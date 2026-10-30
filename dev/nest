@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# Runs a nested Hyprland for hyprweave development and only ever talks to that instance.
+#
+#   dev/nest start        start the nest (blocks; run it from a terminal inside Hyprland)
+#   dev/nest reload       rebuild hyprweave.so and (re)load it into the nest
+#   dev/nest unload       unload hyprweave.so from the nest
+#   dev/nest ctl ARGS...  run `hyprctl ARGS...` against the nest
+#   dev/nest stop         close all windows, then exit the nest
+set -euo pipefail
+
+ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+STATE_DIR="${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is not set}/hyprweave"
+PIDFILE="$STATE_DIR/nest.pid"
+PLUGIN="$ROOT/hyprweave.so"
+
+die() {
+    echo "nest: $*" >&2
+    exit 1
+}
+
+nest_pid() {
+    [[ -f $PIDFILE ]] || return 1
+    local pid
+    pid=$(<"$PIDFILE")
+    kill -0 "$pid" 2>/dev/null || return 1
+    echo "$pid"
+}
+
+# Prints the nest's instance signature. Never falls back to another instance, so a missing
+# nest can not send commands to the real session.
+nest_instance() {
+    local pid sig
+    pid=$(nest_pid) || die "no nest running (start one with: dev/nest start)"
+    sig=$(hyprctl instances -j | jq -r --argjson pid "$pid" '.[] | select(.pid == $pid) | .instance')
+    [[ -n $sig ]] || die "nest (pid $pid) has no Hyprland instance yet"
+    [[ $sig != "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]] || die "pid $pid is this session's Hyprland, not a nest"
+    echo "$sig"
+}
+
+ctl() {
+    local sig
+    sig=$(nest_instance)
+    hyprctl -i "$sig" "$@"
+}
+
+start() {
+    [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} && -n ${WAYLAND_DISPLAY:-} ]] || die "run this from a terminal inside Hyprland"
+    if pid=$(nest_pid); then
+        die "a nest is already running (pid $pid)"
+    fi
+    mkdir -p "$STATE_DIR"
+    echo $$ >"$PIDFILE"
+    # Keep the nest out of the real session's systemd and D-Bus activation environment.
+    export HYPRLAND_NO_SD_VARS=1 HYPRLAND_NO_SD_TARGET=1
+    exec Hyprland --config "$ROOT/dev/nested.lua"
+}
+
+reload() {
+    local sig
+    sig=$(nest_instance)
+    make -C "$ROOT"
+    hyprctl -i "$sig" plugin unload "$PLUGIN" >/dev/null || true
+    hyprctl -i "$sig" plugin load "$PLUGIN"
+}
+
+# Hyprland 0.57.0 segfaults on exit while a group exists (~CGroup runs during
+# CCompositor::cleanup and touches members that are already being destroyed), so close every
+# window first and give the clients a few seconds to go away.
+stop() {
+    local sig
+    sig=$(nest_instance)
+    hyprctl -i "$sig" clients -j | jq -r '.[].address' | while read -r addr; do
+        hyprctl -i "$sig" dispatch "hl.dsp.window.close({ window = \"address:$addr\" })" >/dev/null
+    done
+    for _ in $(seq 1 10); do
+        [[ $(hyprctl -i "$sig" clients -j | jq length) -eq 0 ]] && break
+        sleep 0.5
+    done
+    hyprctl -i "$sig" dispatch 'hl.dsp.exit()'
+}
+
+case "${1:-}" in
+    start) start ;;
+    reload) reload ;;
+    unload) ctl plugin unload "$PLUGIN" ;;
+    ctl)
+        shift
+        ctl "$@"
+        ;;
+    stop) stop ;;
+    *) die "usage: dev/nest start|reload|unload|ctl ARGS...|stop" ;;
+esac
