@@ -1,0 +1,41 @@
+name: Test
+
+# Builds hyprweave against the newest Hyprland in Arch Linux and runs tests/nest-test.sh in a VM.
+# The daily run catches a new Hyprland release that breaks the plugin.
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    # the runner is self-hosted: pull requests from forks never run on it
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: arc-hyprweave
+    timeout-minutes: 30
+    container:
+      image: archlinux:latest
+      options: --device /dev/kvm
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build and test in a VM
+        run: tests/ci/run.sh
+
+      - name: Hyprland version
+        if: always()
+        run: cat ci-logs/versions.txt >>"$GITHUB_STEP_SUMMARY" || true
+
+      - name: Upload logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-logs
+          path: ci-logs

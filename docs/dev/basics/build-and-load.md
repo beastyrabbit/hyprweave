@@ -1,15 +1,15 @@
 # Build, load and test
 
-## Build environment on bunux
+## Build environment
 
-- Hyprland 0.57.0 from the Arch package `hyprland 0.57.0-1`. Headers live in `/usr/include/hyprland/src/...` and `pkg-config --modversion hyprland` prints `0.57.0`.
+- Developed on Arch Linux (x86_64) with Hyprland 0.57.0 from the Arch package `hyprland 0.57.0-1`. Headers live in `/usr/include/hyprland/src/...` and `pkg-config --modversion hyprland` prints `0.57.0`.
 - GCC 16.2.1 (`g++`, through ccache). Build with the same compiler family as Hyprland, because the API passes C++ objects and has no ABI guarantee.
-- `cmake`, `meson` and `hyprpm` are not installed. A plain Makefile is enough. Ask the user before installing build tools.
-- Function hooks only work on x86_64. bunux is x86_64.
+- A plain Makefile is enough; hyprweave needs no `cmake` or `meson`. `hyprpm` only matters for installing (see [hyprpm](#hyprpm)).
+- Function hooks only work on x86_64.
 
 ## Compile
 
-The official plugins build with one `g++` call. This line compiles against the 0.57 headers on bunux (checked 2026-10-30 with a throwaway plugin that includes `PluginAPI.hpp`, `Group.hpp`, `WindowGroupTarget.hpp`, `EventBus.hpp` and `<lua.h>`; it took about 2 seconds):
+The official plugins build with one `g++` call. This line compiles against the 0.57 headers (checked 2026-10-30 with a throwaway plugin that includes `PluginAPI.hpp`, `Group.hpp`, `WindowGroupTarget.hpp`, `EventBus.hpp` and `<lua.h>`; it took about 2 seconds):
 
 ```sh
 g++ -O2 -shared -fPIC -std=c++2b --no-gnu-unique main.cpp -o hyprweave.so \
@@ -38,7 +38,7 @@ dev/nest unload
 dev/nest stop           # closes all windows, then exits the nest
 ```
 
-Checked end to end on bunux on 2026-10-30 with the packaged Hyprland 0.57.0: start, load, form a group, rebuild and reload with the group open, unload, stop. The real session kept `no plugins loaded` and its systemd environment throughout.
+Checked end to end on 2026-10-30 with the packaged Hyprland 0.57.0: start, load, form a group, rebuild and reload with the group open, unload, stop. The real session kept `no plugins loaded` and its systemd environment throughout.
 
 How it works:
 
@@ -64,7 +64,7 @@ Plugin paths must be absolute. A reload is `unload` followed by `load`. Logs liv
 
 ## Permissions
 
-If the config enables permission management (`hl.permission(...)`), loading a plugin can show a prompt. The user's config on bunux had no `hl.permission` entries on 2026-10-30.
+If the config enables permission management (`hl.permission(...)`), loading a plugin can show a prompt.
 
 ## Loading from the Lua config
 
@@ -78,32 +78,19 @@ if hl.plugin.hyprweave ~= nil then
 end
 ```
 
-The `~= nil` check keeps the config valid when the plugin is not loaded. Never edit the user's live config without asking. Custom bits go in a separate file, like `resize-percent.lua`, because DankMaterialShell rewrites `dms/*.lua`.
+The `~= nil` check keeps the config valid when the plugin is not loaded.
 
-## hyprpm (later)
+## hyprpm
 
-`hyprpm` rebuilds plugins after a Hyprland update. It needs a `hyprpm.toml` in the repo root and the `hyprpm` package plus `cpio`, `cmake`, `git`, `meson` and `gcc`, none of which hyprweave needs for development.
+`hyprpm` is how users install hyprweave ([install.md](../../user/install.md)). It clones the repo, reads [`hyprpm.toml`](../../../hyprpm.toml), checks out the commit pinned for the running Hyprland, runs each `build` command from the repo root (`make all`) against the headers it keeps for that Hyprland, and loads `hyprweave.so`.
 
-```toml
-[repository]
-name = "hyprweave"
-authors = ["..."]
-commit_pins = [
-    # [Hyprland commit, hyprweave commit] per Hyprland release
-    ["0aa6745f705f2c4b0a5004eb019ef76e5bbdb426", "<hyprweave commit>"], # 0.57.0
-]
+A commit pin `[Hyprland commit, hyprweave commit]` says which hyprweave commit to build for a given Hyprland. Without a matching pin hyprpm builds the latest commit. Add a pin for every Hyprland release that a hyprweave release supports; see [releasing.md](../releasing.md) and the [official plugins' `hyprpm.toml`](https://github.com/hyprwm/hyprland-plugins/blob/main/hyprpm.toml). The optional `since_hyprland` key sets a minimum Hyprland commit count.
 
-[hyprweave]
-description = "..."
-authors = ["..."]
-output = "hyprweave.so"
-build = ["make all"]
-```
-
-`hyprpm` runs each `build` command from the repo root. A commit pin tells it which hyprweave commit to build for a given Hyprland commit. Without a matching pin it builds the latest commit. The official repo adds one pin per Hyprland release; see [its `hyprpm.toml`](https://github.com/hyprwm/hyprland-plugins/blob/main/hyprpm.toml). The optional `since_hyprland` key sets a minimum Hyprland commit count.
+hyprpm itself needs `cpio`, `cmake`, `git`, `meson` and `gcc` to build Hyprland's headers; hyprweave's own build needs none of the first four.
 
 ## After a Hyprland update
 
 1. Check `Hyprland --version` and `pkg-config --modversion hyprland`. They must match.
 2. Rebuild. The hash check refuses a build made against other headers.
-3. Re-check every hook target (see [hooks.md](hooks.md)) and the group internals (see [groups.md](groups.md)) against the new source, and update these docs.
+3. Run `tests/nest-test.sh` in a nest ([testing.md](../testing.md)).
+4. Re-check every hook target (see [hooks.md](hooks.md)) and the group internals (see [groups.md](groups.md)) against the new source, and update these docs.

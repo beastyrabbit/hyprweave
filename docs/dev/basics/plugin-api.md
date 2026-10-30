@@ -109,7 +109,11 @@ static int luaSetMode(lua_State* L) {
 HyprlandAPI::addLuaFunction(PHANDLE, "hyprweave", "set_mode", ::luaSetMode);
 ```
 
-`configError` reports the error through Hyprland's config error system instead of raising a raw Lua error. Values passed from Lua that the plugin stores across a config reload need clearing on reload; `csgo-vulkan-fix` clears its list on `m_events.config.preReload`.
+`configError` reports the error through Hyprland's config error system instead of raising a raw Lua error. It returns normally (no `longjmp`), so it is safe to call with C++ objects on the stack.
+
+Not every helper in `LuaBindingsInternal.hpp` is exported from the binary. In 0.57, `windowFromLuaSelectorOrObject` is not, but `tableOptWindow(L, idx, field, fnName)` is; it reads a table field and resolves any core window selector or `HL.Window` object. A call to an unexported function compiles but fails to load with an undefined symbol. Check with `nm -DC /usr/bin/Hyprland | grep <name>` first.
+
+Hyprland 0.57 uses Lua 5.5 (`/usr/include/lua.h`). The binary also pulls in Lua 5.4 through libinput; the plugin's `lua_*` calls still resolve to 5.5 because Hyprland links it directly. Do not include `lua5.4/` headers. Values passed from Lua that the plugin stores across a config reload need clearing on reload; `csgo-vulkan-fix` clears its list on `m_events.config.preReload`.
 
 The core Lua group object (`src/config/lua/objects/LuaGroup.cpp`, metatable `HL.Group`) exposes `add`, `remove`, `locked`, `denied`, `size`, `current_index`, `current` and `members`. A Lua function from hyprweave can accept window objects from that API; see how `LuaGroup.cpp` validates a `HL.Window` argument.
 
@@ -152,7 +156,7 @@ The Wayland event loop is single threaded. Do all work on the compositor thread.
 
 ## Private members
 
-To reach private members, wrap Hyprland includes in `#define private public` / `#undef private`. Include the STL headers that Hyprland pulls in **before** that block. With GCC 16 on bunux, leaving `<sstream>` inside the block fails with `error: 'struct std::__cxx11::basic_stringbuf<...>::__xfer_bufptrs' redeclared with different access`. This order compiles:
+To reach private members, wrap Hyprland includes in `#define private public` / `#undef private`. Include the STL headers that Hyprland pulls in **before** that block. With GCC 16, leaving `<sstream>` inside the block fails with `error: 'struct std::__cxx11::basic_stringbuf<...>::__xfer_bufptrs' redeclared with different access`. This order compiles:
 
 ```cpp
 #include <sstream>

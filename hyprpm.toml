@@ -1,0 +1,12 @@
+[repository]
+name = "hyprweave"
+authors = ["beastyrabbit"]
+commit_pins = [
+    # [Hyprland commit, hyprweave commit]: the hyprweave commit hyprpm builds for that Hyprland
+]
+
+[hyprweave]
+description = "Flex-style layouts for Hyprland groups: rows and columns, every member visible"
+authors = ["beastyrabbit"]
+output = "hyprweave.so"
+build = ["make all"]

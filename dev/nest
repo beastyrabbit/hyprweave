@@ -2,9 +2,11 @@
 # Runs a nested Hyprland for hyprweave development and only ever talks to that instance.
 #
 #   dev/nest start        start the nest (blocks; run it from a terminal inside Hyprland)
+#   dev/nest start --bare start it on this machine's own GPU instead, with no outer session (CI VMs)
 #   dev/nest reload       rebuild hyprweave.so and (re)load it into the nest
 #   dev/nest unload       unload hyprweave.so from the nest
 #   dev/nest ctl ARGS...  run `hyprctl ARGS...` against the nest
+#   dev/nest wayland      print the nest's WAYLAND_DISPLAY (for grim and other clients)
 #   dev/nest stop         close all windows, then exit the nest
 set -euo pipefail
 
@@ -44,7 +46,9 @@ ctl() {
 }
 
 start() {
-    [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} && -n ${WAYLAND_DISPLAY:-} ]] || die "run this from a terminal inside Hyprland"
+    if [[ ${1:-} != --bare ]]; then
+        [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} && -n ${WAYLAND_DISPLAY:-} ]] || die "run this from a terminal inside Hyprland"
+    fi
     if pid=$(nest_pid); then
         die "a nest is already running (pid $pid)"
     fi
@@ -80,13 +84,17 @@ stop() {
 }
 
 case "${1:-}" in
-    start) start ;;
+    start)
+        shift
+        start "$@"
+        ;;
     reload) reload ;;
     unload) ctl plugin unload "$PLUGIN" ;;
     ctl)
         shift
         ctl "$@"
         ;;
+    wayland) hyprctl instances -j | jq -r --arg sig "$(nest_instance)" '.[] | select(.instance == $sig) | .wl_socket' ;;
     stop) stop ;;
-    *) die "usage: dev/nest start|reload|unload|ctl ARGS...|stop" ;;
+    *) die "usage: dev/nest start [--bare]|reload|unload|ctl ARGS...|wayland|stop" ;;
 esac

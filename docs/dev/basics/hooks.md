@@ -38,7 +38,7 @@ Rules:
 - Member functions take the object pointer as the first argument. Arguments passed by reference in C++ stay references in the typedef (`const CBox&`, `const STargetBox&`).
 - Match the full demangled signature, not just the name. `findFunctionsByName` returns every exported symbol whose **mangled** name contains the string. `"updatePos"` matches both `Layout::CWindowTarget::updatePos(unsigned char)` and `Layout::CWindowGroupTarget::updatePos(unsigned char)`, and `"setCurrent"` matches both `CGroup::setCurrent(unsigned long)` and `CGroup::setCurrent(Hyprutils::Memory::CSharedPointer<Desktop::View::CWindow>)`. Pick the one you mean by `fn.demangled`. A wrong pick crashes the compositor.
 - If a required hook is missing or `hook()` returns false, refuse to load. Half-installed hooks leave groups in a broken state.
-- Do the lookups once in `PLUGIN_INIT`. The first lookup runs `nm -D` over the Hyprland binary, so it is slow, and the addresses do not change at runtime. It needs `nm` (binutils) in Hyprland's `PATH`; on bunux it is `/usr/bin/nm`.
+- Do the lookups once in `PLUGIN_INIT`. The first lookup runs `nm -D` over the Hyprland binary, so it is slow, and the addresses do not change at runtime. It needs `nm` (binutils) in Hyprland's `PATH`, usually `/usr/bin/nm`.
 - `unhook()` and `hook()` can toggle a hook at runtime. Hyprland removes all of a plugin's hooks on unload, after `PLUGIN_EXIT`.
 
 ## Check that a hook will fire
@@ -54,7 +54,7 @@ objdump -d --no-show-raw-insn -C /usr/bin/Hyprland \
     | grep -E '(call|jmp).*<Desktop::View::CGroup::updateWindowVisibility\(\)>$' | wc -l
 ```
 
-Results for 0.57.0 on bunux (2026-10-30):
+Results for 0.57.0 on Arch (2026-10-30):
 
 - `CGroup::updateWindowVisibility()` has 7 direct calls. That matches the 7 calls in `Group.cpp` (`init`, `add`, `replaceMember`, `remove`, `setCurrent(size_t)`, `swapWithNext`, `swapWithLast`), so no caller inlined it.
 - `CWindowGroupTarget::setPositionGlobal` calls `ITarget::setPositionGlobal` and then tail-jumps to `CWindowGroupTarget::updatePos`, so a hook on `updatePos` sees every group position update.
