@@ -32,7 +32,11 @@ if [[ -n ${HYPRLAND_GIT:-} ]]; then
     CHAOTIC_KEY=EF925EA60F33D0CB85C44AD13056513887B78AEB # gitleaks:allow (public key fingerprint)
     # the image has Arch's keys but no local key to sign chaotic-aur's with
     pacman-key --init >"$LOGS/chaotic-key.log" 2>&1
-    pacman-key --recv-key "$CHAOTIC_KEY" --keyserver keyserver.ubuntu.com >>"$LOGS/chaotic-key.log" 2>&1
+    # over HTTPS: the CI runner can't reach the keyserver port (11371). Signing by full
+    # fingerprint fails if that key is missing from the file; other keys in it stay unsigned.
+    curl -fsS --retry 3 "https://keyserver.ubuntu.com/pks/lookup?op=get&options=mr&search=0x$CHAOTIC_KEY" \
+        -o /tmp/chaotic.asc
+    pacman-key --add /tmp/chaotic.asc >>"$LOGS/chaotic-key.log" 2>&1
     pacman-key --lsign-key "$CHAOTIC_KEY" >>"$LOGS/chaotic-key.log" 2>&1
     {
         printf '\n[chaotic-aur]\n'
