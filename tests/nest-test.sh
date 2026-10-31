@@ -227,6 +227,8 @@ check "unknown window" test "$(err 'hl.plugin.hyprweave.create({ direction = "ro
 check "bad direction" test "$(err 'hl.plugin.hyprweave.create({ direction = "diagonal", children = { { window = "class:^hw-a$" } } })')" = 'nil|a node needs either window, or direction = "row" or "column"'
 check "one window is not a group" test "$(err 'hl.plugin.hyprweave.create({ direction = "row", children = { { window = "class:^hw-a$" } } })' | cut -d'|' -f1)" = nil
 check "negative gap" test "$(err 'hl.plugin.hyprweave.create({ direction = "row", gap = -3, children = { { window = "class:^hw-a$" }, { window = "class:^hw-b$" } } })' | cut -d'|' -f1)" = nil
+check "size must be finite" test "$(err 'hl.plugin.hyprweave.create({ direction = "row", children = { { window = "class:^hw-a$", size = 0/0 }, { window = "class:^hw-b$" } } })')" = "nil|size must be a positive number"
+check "gap too large" test "$(err 'hl.plugin.hyprweave.create({ direction = "row", gap = 4294967296, children = { { window = "class:^hw-a$" }, { window = "class:^hw-b$" } } })' | cut -d'|' -f1)" = nil
 check "bad colour" test "$(err 'hl.plugin.hyprweave.create({ direction = "row", background = "grey", children = { { window = "class:^hw-a$" }, { window = "class:^hw-b$" } } })' | cut -d'|' -f1)" = nil
 check "no group was created by the failed calls" test "$(groups)" -eq 0
 check "get() on an ungrouped window is nil" test "$(lua 'return tostring(hl.plugin.hyprweave.get({ window = "class:^hw-a$" }))')" = nil
@@ -294,6 +296,19 @@ check "members are ungrouped" wait_for 3 ungrouped hw-b
 check "no hyprweave groups left" test "$(groups)" -eq 0
 sleep 1
 check "the three windows fill the screen again" test "$(ctl clients -j | jq '[.[] | select(.class | startswith("hw-")) | .size[0] * .size[1]] | add')" -gt "$((${MON%,*} * ${MON#*,} * 9 / 10))"
+close_all
+
+echo "== members leave safely with group:groupbar:disable_when_only"
+ctl eval 'hl.config({ group = { groupbar = { disable_when_only = true } } })' >/dev/null
+open hw-a hw-b
+lua 'hl.plugin.hyprweave.create({ direction = "row", children = { { window = "class:^hw-a$" }, { window = "class:^hw-b$" } } })' >/dev/null
+ctl dispatch 'hl.dsp.window.close({ window = "class:^hw-b$" })' >/dev/null
+check "closing a member leaves the other window" wait_for 3 ungrouped hw-a
+open hw-b
+lua 'hl.plugin.hyprweave.create({ direction = "row", children = { { window = "class:^hw-a$" }, { window = "class:^hw-b$" } } })' >/dev/null
+check "dissolve() works" test "$(lua 'return tostring(hl.plugin.hyprweave.dissolve({ window = "class:^hw-a$" }))')" = true
+check "Hyprland is still running" test -n "$(ctl -j version)"
+ctl eval 'hl.config({ group = { groupbar = { disable_when_only = false } } })' >/dev/null
 
 echo
 if ((FAILURES > 0)); then

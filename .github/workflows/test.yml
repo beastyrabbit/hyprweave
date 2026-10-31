@@ -19,7 +19,7 @@ jobs:
     # the runner is self-hosted: pull requests from forks never run on it
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: arc-hyprweave
-    timeout-minutes: 30
+    timeout-minutes: 60
     container:
       image: archlinux:latest
       options: --device /dev/kvm

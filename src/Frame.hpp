@@ -27,8 +27,30 @@ namespace Weave {
         PHLWINDOWREF m_window;
     };
 
+    // Stands in for the tab bar, which a hyprweave group does not show. Hyprland expects every
+    // member of a group to have one: CGroup::remove calls it without a check when
+    // group:groupbar:disable_when_only is set. Draws nothing and takes no room.
+    class CBarStub : public IHyprWindowDecoration {
+      public:
+        CBarStub(PHLWINDOW window);
+        virtual ~CBarStub() = default;
+
+        virtual SDecorationPositioningInfo getPositioningInfo() override;
+        virtual void                       onPositioningReply(const SDecorationPositioningReply& reply) override;
+        virtual void                       draw(Render::CRenderContext& ctx, PHLMONITOR, float const& a, const Render::SWindowRenderPresentation& presentation) override;
+        virtual eDecorationType            getDecorationType() override;
+        virtual void                       updateWindow(PHLWINDOW) override;
+        virtual void                       damageEntire() override;
+        virtual uint64_t                   getDecorationFlags() override;
+        virtual std::string                getDisplayName() override;
+    };
+
     void attachFrame(PHLWINDOW w);
     void detachFrame(PHLWINDOW w);
+
+    // Swaps the window's tab bar for a CBarStub, and back.
+    void hideBar(PHLWINDOW w);
+    void restoreBar(PHLWINDOW w, Desktop::View::CGroup& group);
 
     // Whether the group draws a frame right now (plugin:hyprweave:frame_size > 0, more than one
     // member visible, not fullscreen).

@@ -193,3 +193,70 @@ void Weave::detachFrame(PHLWINDOW w) {
     if (auto* const FRAME = frameOf(w))
         HyprlandAPI::removeWindowDecoration(PHANDLE, FRAME);
 }
+
+CBarStub::CBarStub(PHLWINDOW window) : IHyprWindowDecoration(window) {
+    ;
+}
+
+SDecorationPositioningInfo CBarStub::getPositioningInfo() {
+    SDecorationPositioningInfo info;
+    info.policy   = DECORATION_POSITION_ABSOLUTE;
+    info.edges    = 0;
+    info.reserved = false;
+    return info;
+}
+
+void CBarStub::onPositioningReply(const SDecorationPositioningReply& reply) {
+    ;
+}
+
+void CBarStub::draw(Render::CRenderContext& ctx, PHLMONITOR, float const& a, const Render::SWindowRenderPresentation& presentation) {
+    ;
+}
+
+eDecorationType CBarStub::getDecorationType() {
+    return DECORATION_GROUPBAR;
+}
+
+void CBarStub::updateWindow(PHLWINDOW) {
+    ;
+}
+
+void CBarStub::damageEntire() {
+    ;
+}
+
+uint64_t CBarStub::getDecorationFlags() {
+    return DECORATION_NON_SOLID;
+}
+
+std::string CBarStub::getDisplayName() {
+    return "hyprweave tab bar stand-in";
+}
+
+void Weave::hideBar(PHLWINDOW w) {
+    bool                                stubbed = false;
+    std::vector<IHyprWindowDecoration*> bars;
+    for (const auto& d : w->presentation().decorations()) {
+        if (dynamic_cast<CBarStub*>(d.get()))
+            stubbed = true;
+        else if (d->getDecorationType() == DECORATION_GROUPBAR)
+            bars.push_back(d.get());
+    }
+    for (auto* const b : bars)
+        w->presentation().removeDecoration(b);
+    if (!stubbed)
+        HyprlandAPI::addWindowDecoration(PHANDLE, w, makeShared<CBarStub>(w));
+}
+
+void Weave::restoreBar(PHLWINDOW w, Desktop::View::CGroup& group) {
+    std::vector<IHyprWindowDecoration*> stubs;
+    for (const auto& d : w->presentation().decorations()) {
+        if (dynamic_cast<CBarStub*>(d.get()))
+            stubs.push_back(d.get());
+    }
+    for (auto* const s : stubs)
+        HyprlandAPI::removeWindowDecoration(PHANDLE, s);
+    w->presentation().updateDecorations();
+    group.applyWindowDecosAndUpdates(w);
+}

@@ -3,6 +3,7 @@
 #include "Weave.hpp"
 #include "globals.hpp"
 
+#include <cmath>
 #include <format>
 
 #include <hyprland/src/config/lua/bindings/LuaBindingsInternal.hpp>
@@ -34,7 +35,7 @@ static std::unique_ptr<SNode> parseNode(lua_State* L, int idx, const char* fn, i
         err = "every node must be a table";
         return nullptr;
     }
-    if (depth > MAX_DEPTH) {
+    if (depth > MAX_DEPTH || !lua_checkstack(L, 4)) {
         err = "containers are nested too deep";
         return nullptr;
     }
@@ -43,7 +44,7 @@ static std::unique_ptr<SNode> parseNode(lua_State* L, int idx, const char* fn, i
 
     lua_getfield(L, idx, "size");
     if (!lua_isnil(L, -1)) {
-        if (!lua_isnumber(L, -1) || lua_tonumber(L, -1) <= 0) {
+        if (!lua_isnumber(L, -1) || !(lua_tonumber(L, -1) > 0) || !std::isfinite(lua_tonumber(L, -1))) {
             lua_pop(L, 1);
             err = "size must be a positive number";
             return nullptr;
@@ -110,6 +111,7 @@ static PHLWINDOW targetWindow(lua_State* L, const char* fn) {
 }
 
 static void pushNode(lua_State* L, const SNode& node, double percent) {
+    luaL_checkstack(L, 4, "hyprweave tree too deep");
     lua_newtable(L);
 
     lua_pushnumber(L, percent);
@@ -163,12 +165,12 @@ static int luaCreate(lua_State* L) {
     SStyle style;
     lua_getfield(L, 1, "gap");
     if (!lua_isnil(L, -1)) {
-        const bool OK = lua_isinteger(L, -1) && lua_tointeger(L, -1) >= 0;
+        const bool OK = lua_isinteger(L, -1) && lua_tointeger(L, -1) >= 0 && lua_tointeger(L, -1) <= 1000;
         if (OK)
             style.gap = sc<int>(lua_tointeger(L, -1));
         lua_pop(L, 1);
         if (!OK)
-            return fail(L, FN, "gap must be a whole number of pixels, 0 or more");
+            return fail(L, FN, "gap must be a whole number of pixels, 0 to 1000");
     } else
         lua_pop(L, 1);
 

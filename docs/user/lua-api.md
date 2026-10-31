@@ -37,7 +37,7 @@ A group is a tree of containers. Each container is a `row` (children side by sid
 
 ### `create(spec)`
 
-Creates a group from a layout tree. `spec` is a `row` or `column` container with an optional `lock`, an optional `gap` (pixels between this group's members, overriding `plugin:hyprweave:gap`) and an optional `background` (a colour such as `"rgb(8c9388)"`, overriding `plugin:hyprweave:background_color`). It needs at least two windows. Windows leave any group they are in first. The group takes the place of the first window in the tree, and the other windows move to its workspace.
+Creates a group from a layout tree. `spec` is a `row` or `column` container with an optional `lock`, an optional `gap` (0 to 1000 pixels between this group's members, overriding `plugin:hyprweave:gap`) and an optional `background` (a colour such as `"rgb(8c9388)"`, overriding `plugin:hyprweave:background_color`). It needs at least two windows. Windows leave any group they are in first. The group takes the place of the first window in the tree, and the other windows move to its workspace.
 
 ```lua
 hl.plugin.hyprweave.create({
@@ -61,7 +61,7 @@ Sets the lock level of the group that `window` (default: the focused window) bel
 | `members` | No windows can join, not even with `auto_join`. |
 | `full` | Both. The group behaves like one window. |
 
-Whatever the level, windows join a hyprweave group only through `create`, or as newly opened windows with `auto_join`. Hyprland's moves, `into_group` and dragging never add a window, and moving a member moves the whole group. hyprweave sets Hyprland's own group lock on every group for this, so Hyprland shows members in its locked group colours.
+Whatever the level, windows join a hyprweave group only through `create`, or as newly opened windows with `auto_join`. Hyprland's moves, `into_group` and dragging never add a window, and moving a member moves the whole group. hyprweave sets Hyprland's own group lock on every group for this, so Hyprland shows members in its locked group colours. Two Hyprland features go around that lock, and with them a move can add a window: unlocking the group with Hyprland's group lock dispatchers, and `binds:ignore_group_lock = true`.
 
 Closing a member of a locked group (any level except `none`) closes every member. Closing a member of an unlocked group lets its siblings take the space; when one window is left, the group dissolves.
 

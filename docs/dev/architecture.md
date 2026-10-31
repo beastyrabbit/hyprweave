@@ -23,7 +23,7 @@ All three are matched on their full demangled signature; if any is missing the p
 
 | Hook | For hyprweave groups | Otherwise |
 | --- | --- | --- |
-| `CGroup::updateWindowVisibility()` | Syncs the tree with the members (`prune`, then `append` for new members), keeps every member visible and accepting input, removes the tab bar decoration, recalculates the group target. Dissolves the group (deferred) when one member is left. | Original. |
+| `CGroup::updateWindowVisibility()` | Syncs the tree with the members (`prune`, then `append` for new members), keeps every member visible and accepting input, swaps the tab bar decoration for an empty stand-in (`CBarStub`; `CGroup::remove` expects every member to have a tab bar when `group:groupbar:disable_when_only` is set), recalculates the group target. Dissolves the group (deferred) when one member is left. | Original. |
 | `CWindowGroupTarget::updatePos(unsigned char)` | Splits the group target's `m_box` (inside the frame, see below) along the tree and calls `setPositionGlobal` on each member's window target. Also sets member visibility (alpha and input block). When the current member is fullscreen on its own, it gets the whole box and the others are hidden like inactive tabs. | Original (every member gets the whole box). |
 | `CWindowGroupMembership::canBeGroupedInto(...)` | Returns false, except for a window mapping for the first time while `auto_join` is on and the lock is `none` or `layout`; then it lifts the group's core lock and asks the original, so global locks and window rules still apply. This covers auto-group on open and dragging. | Original. |
 
@@ -62,7 +62,7 @@ A normal fullscreen therefore marks the focused member, and `hkUpdatePos` shows 
 
 ## Unload
 
-`PLUGIN_EXIT` calls `releaseAll`: it forgets every hyprweave group, gives each member its tab bar back (`applyWindowDecosAndUpdates`), and runs `updateWindowVisibility`, which now takes the original path. Hooks are still installed during `PLUGIN_EXIT` and removed after it.
+`PLUGIN_EXIT` calls `releaseAll`: it forgets every hyprweave group, swaps each member's stand-in for its tab bar again (`applyWindowDecosAndUpdates`), and runs `updateWindowVisibility`, which now takes the original path. Hooks are still installed during `PLUGIN_EXIT` and removed after it.
 
 ## Tests
 

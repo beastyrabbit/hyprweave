@@ -34,7 +34,7 @@ Details and gotchas are in [build-and-load.md](docs/dev/basics/build-and-load.md
 
 - Never load a build into the user's running Hyprland session, and never edit `~/.config/hypr/`, without the user's explicit OK. Test in the nest through `dev/nest`; if you call `hyprctl` by hand, pass `-i <nest>`.
 - Build with a plain Makefile and `pkg-config`; `hyprpm` builds with the same `make all`.
-- CI runs on the self-hosted runner `arc-hyprweave`. Never let pull requests from forks run on it.
+- CI runs on the self-hosted runner `arc-hyprweave`. Never let pull requests from forks run on it: keep the repository's "Require approval for all external contributors" setting and never approve a fork's run.
 - Keep function hooks few. Match each hook on its full demangled signature and refuse to load if any required hook is missing.
 - Rebuild after every Hyprland update; the hash check rejects stale builds.
 - Do not commit or push unless the user asks.

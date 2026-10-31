@@ -136,8 +136,7 @@ static void hkUpdateWindowVisibility(CGroup* thisptr) {
     for (const auto& w : MEMBERS) {
         w->m_ruleApplicator->propertiesChanged(Desktop::Rule::RULE_PROP_GROUP | Desktop::Rule::RULE_PROP_ON_WORKSPACE);
         // nothing is hidden, so the tab bar has no job; the frame marks the group
-        if (const auto BAR = w->presentation().decoration(DECORATION_GROUPBAR))
-            w->presentation().removeDecoration(BAR.get());
+        hideBar(w);
         attachFrame(w);
         w->presentation().updateDecorations();
         w->presentation().refreshValues();
@@ -496,8 +495,7 @@ void Weave::releaseAll() {
     for (const auto& g : groups) {
         for (const auto& w : members(g.get())) {
             detachFrame(w);
-            if (!w->presentation().decoration(DECORATION_GROUPBAR))
-                g->applyWindowDecosAndUpdates(w);
+            restoreBar(w, *g);
         }
         g->updateWindowVisibility();
     }
