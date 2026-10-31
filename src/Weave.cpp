@@ -84,9 +84,21 @@ typedef void (*origVisibility)(CGroup*);
 typedef void (*origUpdatePos)(Layout::CWindowGroupTarget*, uint8_t);
 typedef bool (*origCanGroup)(const Desktop::View::CWindowGroupMembership*, const SP<CGroup>&);
 
+// Deferred work still queued; releaseAll cancels it, because its code goes away with the plugin.
+static std::vector<uint64_t> g_later;
+
+static void later(std::function<void()> fn) {
+    const auto SEQ = std::make_shared<uint64_t>(0);
+    *SEQ           = g_pEventLoopManager->doLater([fn = std::move(fn), SEQ] {
+        std::erase(g_later, *SEQ);
+        fn();
+    });
+    g_later.push_back(*SEQ);
+}
+
 // A hyprweave group with one member left stops being a group.
 static void dissolveLater(const CGroup* group) {
-    g_pEventLoopManager->doLater([ref = group->m_self] {
+    later([ref = group->m_self] {
         const auto GROUP = ref.lock();
         if (!GROUP || GROUP->size() > 1 || !find(GROUP.get()))
             return;
@@ -443,7 +455,7 @@ void Weave::onWindowFocus(PHLWINDOW w) {
         return;
 
     // not from inside the focus change
-    g_pEventLoopManager->doLater([ref = PHLWINDOWREF{w}] {
+    later([ref = PHLWINDOWREF{w}] {
         const auto W = ref.lock();
         if (!W || Desktop::focusState()->window() != W)
             return;
@@ -475,7 +487,7 @@ void Weave::onWindowClose(PHLWINDOW w) {
     }
 
     // not from inside the closing window's unmap
-    g_pEventLoopManager->doLater([others] {
+    later([others] {
         for (const auto& o : others) {
             if (const auto W = o.lock(); W && W->mapped())
                 W->sendClose();
@@ -484,6 +496,10 @@ void Weave::onWindowClose(PHLWINDOW w) {
 }
 
 void Weave::releaseAll() {
+    for (const auto SEQ : g_later)
+        g_pEventLoopManager->removeDoLater(SEQ);
+    g_later.clear();
+
     std::vector<SP<CGroup>> groups;
     for (const auto& g : g_groups) {
         damageFrame(*g);

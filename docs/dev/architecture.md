@@ -62,7 +62,7 @@ A normal fullscreen therefore marks the focused member, and `hkUpdatePos` shows 
 
 ## Unload
 
-`PLUGIN_EXIT` calls `releaseAll`: it forgets every hyprweave group, swaps each member's stand-in for its tab bar again (`applyWindowDecosAndUpdates`), and runs `updateWindowVisibility`, which now takes the original path. Hooks are still installed during `PLUGIN_EXIT` and removed after it.
+`PLUGIN_EXIT` calls `releaseAll`: it cancels deferred work that is still queued (its code goes away with the plugin), forgets every hyprweave group, swaps each member's stand-in for its tab bar again (`applyWindowDecosAndUpdates`), and runs `updateWindowVisibility`, which now takes the original path. Hooks are still installed during `PLUGIN_EXIT` and removed after it.
 
 ## Tests
 
