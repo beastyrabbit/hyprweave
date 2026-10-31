@@ -39,6 +39,8 @@ Add a check for every new behaviour. Helpers at the top of the script:
 
 It runs on the self-hosted runner `arc-hyprweave` (Actions Runner Controller in the maintainer's cluster). Pull requests from forks never run there: the job skips them, and because a fork can edit that condition, the repository also requires a maintainer's approval before any outside contributor's workflow runs (Settings, Actions, "Require approval for all external contributors"). Do not approve a fork's run; a maintainer runs a fork's change by pushing the branch to this repo.
 
+Packages come through a caching proxy in the same cluster (pacoloco), so a run downloads only what changed since an earlier run. The workflow passes it to `run.sh` as `PACMAN_MIRROR`, which goes first in the mirror list; the normal Arch mirrors stay behind it, so a stalled or missing proxy only slows a run down. Without `PACMAN_MIRROR` the script uses the container's normal mirrors.
+
 Hyprland needs a DRM device even for headless outputs, and CI has no GPU. So [`tests/ci/run.sh`](../../tests/ci/run.sh) runs in an `archlinux:latest` container with `/dev/kvm`, installs Hyprland, kitty and a kernel, builds the plugin, and boots a small VM with [virtme-ng](https://github.com/arighi/virtme-ng). The VM uses the container's own filesystem and has a virtual GPU (`virtio-gpu-pci`, 1920x1080); Mesa renders in software (`LIBGL_ALWAYS_SOFTWARE=1`). Inside the VM, [`tests/ci/in-vm.sh`](../../tests/ci/in-vm.sh) starts `seatd`, then `dev/nest start --bare` and the suite as an ordinary user.
 
 To run CI locally (about 4 minutes, most of it package downloads):

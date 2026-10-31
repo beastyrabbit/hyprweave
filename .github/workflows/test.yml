@@ -23,6 +23,9 @@ jobs:
     container:
       image: archlinux:latest
       options: --device /dev/kvm
+    env:
+      # the cluster's Arch package cache (kub-homelab docs/arc-runners.md)
+      PACMAN_MIRROR: http://pacoloco.arc-runners.svc.cluster.local:9129/repo/archlinux/$repo/os/$arch
     steps:
       - uses: actions/checkout@v6
 

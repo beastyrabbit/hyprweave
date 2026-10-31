@@ -17,6 +17,12 @@ LOGS="$ROOT/ci-logs"
 mkdir -p "$LOGS"
 
 echo "== install"
+# PACMAN_MIRROR (a pacman Server URL, e.g. a caching proxy) goes before the normal mirrors,
+# which stay as the fallback
+if [[ -n ${PACMAN_MIRROR:-} ]]; then
+    { echo "Server = $PACMAN_MIRROR"; cat /etc/pacman.d/mirrorlist; } >/tmp/mirrorlist
+    mv /tmp/mirrorlist /etc/pacman.d/mirrorlist
+fi
 pacman -Syu --noconfirm --noprogressbar --needed \
     hyprland gcc make pkgconf \
     linux virtme-ng qemu-base qemu-hw-display-virtio-gpu qemu-hw-display-virtio-gpu-pci seatd \
