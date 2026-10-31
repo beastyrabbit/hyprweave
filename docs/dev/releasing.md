@@ -13,7 +13,9 @@ hyprweave uses semantic versions. The version lives in `HYPRWEAVE_VERSION` (`src
 
 ## After a Hyprland release
 
-The daily CI run builds against the newest Hyprland in Arch Linux. When it fails after a Hyprland update:
+The daily CI run builds against the newest Hyprland in Arch Linux. When it passes on a Hyprland release that `hyprpm.toml` does not pin yet, it opens a pull request that adds the pin. The pin names the newest release's commit if `src/` and the `Makefile` are unchanged since then, otherwise the commit the run tested; in that case, release first and point the pin at the release. Merge it to support the new Hyprland.
+
+When the daily run fails after a Hyprland update:
 
 1. Update Hyprland locally, rebuild, start a nest and run the suite.
 2. If the plugin refuses to load, a hook target changed: compare each signature in [basics/hooks.md](basics/hooks.md) with the new source and fix the matches in `src/Weave.cpp`.

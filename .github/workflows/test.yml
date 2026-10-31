@@ -1,7 +1,8 @@
 name: Test
 
 # Builds hyprweave against the newest Hyprland in Arch Linux and runs tests/nest-test.sh in a VM.
-# The daily run catches a new Hyprland release that breaks the plugin.
+# The daily run catches a new Hyprland release that breaks the plugin, and proposes a hyprpm.toml
+# pin for a new release that passes.
 on:
   push:
     branches: [main]
@@ -26,6 +27,9 @@ jobs:
     env:
       # the cluster's Arch package cache (kub-homelab docs/arc-runners.md)
       PACMAN_MIRROR: http://pacoloco.arc-runners.svc.cluster.local:9129/repo/archlinux/$repo/os/$arch
+    outputs:
+      hyprland-version: ${{ steps.hyprland.outputs.version }}
+      hyprland-commit: ${{ steps.hyprland.outputs.commit }}
     steps:
       - uses: actions/checkout@v6
 
@@ -33,8 +37,17 @@ jobs:
         run: tests/ci/run.sh
 
       - name: Hyprland version
+        id: hyprland
         if: always()
-        run: cat ci-logs/versions.txt >>"$GITHUB_STEP_SUMMARY" || true
+        shell: bash
+        run: |
+          cat ci-logs/versions.txt >>"$GITHUB_STEP_SUMMARY" || true
+          # "Hyprland 0.57.0 built from branch v0.57.0 at commit <40 hex> ..."
+          LINE=$(grep -m1 '^Hyprland ' ci-logs/versions.txt || true)
+          if [[ $LINE =~ ^Hyprland\ ([0-9.]+)\ .*\ commit\ ([0-9a-f]{40}) ]]; then
+              echo "version=${BASH_REMATCH[1]}" >>"$GITHUB_OUTPUT"
+              echo "commit=${BASH_REMATCH[2]}" >>"$GITHUB_OUTPUT"
+          fi
 
       - name: Upload logs
         if: failure()
@@ -42,3 +55,39 @@ jobs:
         with:
           name: ci-logs
           path: ci-logs
+
+  pin:
+    needs: test
+    if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && needs.test.outputs.hyprland-commit != ''
+    runs-on: ubuntu-latest
+    # one at a time, so two runs never race for the same pull request
+    concurrency:
+      group: pin
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Propose a hyprpm.toml pin
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HYPRLAND_VERSION: ${{ needs.test.outputs.hyprland-version }}
+          HYPRLAND_COMMIT: ${{ needs.test.outputs.hyprland-commit }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: tests/ci/propose-pin.sh
+
+  keepalive:
+    # GitHub turns off scheduled workflows in a public repository after 60 days without a commit;
+    # enabling the workflow again on every scheduled run keeps it on
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/test.yml/enable"

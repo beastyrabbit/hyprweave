@@ -1,0 +1,52 @@
+name: Hyprland git
+
+# Runs tests/nest-test.sh against Hyprland's main branch (chaotic-aur's hyprland-git) once a week:
+# an early warning of what the next Hyprland release breaks. Users run releases, so a failure
+# here blocks nothing.
+on:
+  schedule:
+    - cron: "41 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: arc-hyprweave
+    timeout-minutes: 60
+    container:
+      image: archlinux:latest
+      options: --device /dev/kvm
+    env:
+      HYPRLAND_GIT: 1
+      # the cluster's package cache for Arch and chaotic-aur (kub-homelab docs/arc-runners.md)
+      PACMAN_MIRROR: http://pacoloco.arc-runners.svc.cluster.local:9129/repo/archlinux/$repo/os/$arch
+      CHAOTIC_MIRROR: http://pacoloco.arc-runners.svc.cluster.local:9129/repo/chaotic-aur/$arch
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build and test in a VM
+        run: tests/ci/run.sh
+
+      - name: Hyprland version
+        if: always()
+        run: cat ci-logs/versions.txt >>"$GITHUB_STEP_SUMMARY" || true
+
+      - name: Upload logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-logs
+          path: ci-logs
+
+  keepalive:
+    # see test.yml
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/hyprland-git.yml/enable"
