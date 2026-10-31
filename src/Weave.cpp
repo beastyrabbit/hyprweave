@@ -6,12 +6,12 @@
 #include <algorithm>
 #include <format>
 
+#include <hyprland/src/Compositor.hpp>
 #include <hyprland/src/config/ConfigValue.hpp>
 #include <hyprland/src/config/shared/complex/ComplexDataTypes.hpp>
 #include <hyprland/src/config/shared/workspace/WorkspaceRuleManager.hpp>
 #include <hyprland/src/desktop/state/FocusState.hpp>
 #include <hyprland/src/layout/space/Space.hpp>
-#include <hyprland/src/managers/eventLoop/EventLoopManager.hpp>
 #include <hyprland/src/managers/fullscreen/FullscreenController.hpp>
 #include <hyprland/src/render/Renderer.hpp>
 #include <hyprland/src/render/decorations/IHyprWindowDecoration.hpp>
@@ -84,16 +84,30 @@ typedef void (*origVisibility)(CGroup*);
 typedef void (*origUpdatePos)(Layout::CWindowGroupTarget*, uint8_t);
 typedef bool (*origCanGroup)(const Desktop::View::CWindowGroupMembership*, const SP<CGroup>&);
 
-// Deferred work still queued; releaseAll cancels it, because its code goes away with the plugin.
-static std::vector<uint64_t> g_later;
+// Deferred work, each in its own Wayland idle source, so releaseAll can cancel what is still
+// queued: its code goes away with the plugin. Hyprland's doLater runs a copied batch that can not
+// be cancelled from inside it.
+struct SLater {
+    wl_event_source*      source = nullptr;
+    std::function<void()> fn;
+};
+static std::vector<std::unique_ptr<SLater>> g_later;
+
+static void runLater(void* data) {
+    const auto IT = std::ranges::find_if(g_later, [data](const auto& l) { return l.get() == data; });
+    if (IT == g_later.end())
+        return;
+    // libwayland removes the one-shot source after this returns
+    const auto FN = std::move((*IT)->fn);
+    g_later.erase(IT);
+    FN();
+}
 
 static void later(std::function<void()> fn) {
-    const auto SEQ = std::make_shared<uint64_t>(0);
-    *SEQ           = g_pEventLoopManager->doLater([fn = std::move(fn), SEQ] {
-        std::erase(g_later, *SEQ);
-        fn();
-    });
-    g_later.push_back(*SEQ);
+    auto l    = std::make_unique<SLater>();
+    l->fn     = std::move(fn);
+    l->source = wl_event_loop_add_idle(g_pCompositor->m_wlEventLoop, runLater, l.get());
+    g_later.push_back(std::move(l));
 }
 
 // A hyprweave group with one member left stops being a group.
@@ -496,8 +510,8 @@ void Weave::onWindowClose(PHLWINDOW w) {
 }
 
 void Weave::releaseAll() {
-    for (const auto SEQ : g_later)
-        g_pEventLoopManager->removeDoLater(SEQ);
+    for (const auto& l : g_later)
+        wl_event_source_remove(l->source);
     g_later.clear();
 
     std::vector<SP<CGroup>> groups;
