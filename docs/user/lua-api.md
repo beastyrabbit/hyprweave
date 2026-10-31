@@ -58,8 +58,10 @@ Sets the lock level of the group that `window` (default: the focused window) bel
 | --- | --- |
 | `none` | Nothing is fixed. |
 | `layout` | The arrangement and sizes are fixed. |
-| `members` | No windows can join (this is Hyprland's own group lock). |
+| `members` | No windows can join, not even with `auto_join`. |
 | `full` | Both. The group behaves like one window. |
+
+Whatever the level, windows join a hyprweave group only through `create`, or as newly opened windows with `auto_join`. Hyprland's moves, `into_group` and dragging never add a window, and moving a member moves the whole group. hyprweave sets Hyprland's own group lock on every group for this, so Hyprland shows members in its locked group colours.
 
 Closing a member of a locked group (any level except `none`) closes every member. Closing a member of an unlocked group lets its siblings take the space; when one window is left, the group dissolves.
 
@@ -89,7 +91,7 @@ local g = hl.plugin.hyprweave.get()
 
 ```lua
 hl.config({ plugin = { hyprweave = {
-    auto_join = false,                      -- newly opened windows may join a focused, unlocked hyprweave group
+    auto_join = false,                      -- newly opened windows may join a focused hyprweave group locked at none or layout
     frame_size = 2,                         -- border around the whole group; 0 turns it off
     frame_color_active = "rgb(cba6f7)",     -- while a member is focused
     frame_color_inactive = "rgb(7f6c99)",
@@ -113,4 +115,5 @@ hyprweave groups have no tab bar. Instead, one frame goes around the whole group
 - Fullscreening a member shows that member alone across the monitor; `fullscreen()` fullscreens the whole group with its split.
 - The focused member is the group's current member.
 - Floating one member floats the whole group.
+- Moving a member (`hl.dsp.window.move({ direction })`) moves the whole group; Hyprland's group toggle dissolves it.
 - Unloading the plugin turns every hyprweave group back into a tab group.

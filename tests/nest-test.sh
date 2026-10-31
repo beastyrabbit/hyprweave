@@ -131,7 +131,8 @@ check "group still has two members" test "$(field hw-stream '.grouped | length')
 echo "== frame and background pixels"
 # grim reads the nest's own layout coordinates; scale is 1 in every nest config
 WL=$("$N" wayland)
-pixel() { WAYLAND_DISPLAY=$WL grim -g "$1,$2 1x1" -t ppm - | tail -c 3 | od -An -tx1 | tr -d ' \n'; }
+# a nest whose window is not visible renders no frames, so grim gets a time limit
+pixel() { WAYLAND_DISPLAY=$WL timeout 2 grim -g "$1,$2 1x1" -t ppm - 2>/dev/null | tail -c 3 | od -An -tx1 | tr -d ' \n'; }
 pixel_is() { [[ $(pixel "$1" "$2") == "$3" ]]; } # predicates for wait_for
 pixel_not() { [[ $(pixel "$1" "$2") != "$3" ]]; }
 ctl eval 'hl.config({ plugin = { hyprweave = { frame_size = 6, gap = 20, frame_color_active = "rgb(ff0000)", frame_color_inactive = "rgb(0000ff)", background_color = "rgb(00ff00)" } } })' >/dev/null
@@ -262,6 +263,37 @@ floats() { [[ $(field hw-stream .floating),$(field hw-chat .floating) == true,tr
 check "both members float" wait_for 3 floats
 check "ratio holds while floating" wait_for 3 ratio_near hw-stream hw-chat h 75
 check "members still share x" test "$(field hw-stream '.at[0]')" -eq "$(field hw-chat '.at[0]')"
+close_all
+
+echo "== creating a group while another window has focus"
+open hw-a hw-b hw-c
+ctl dispatch 'hl.dsp.focus({ window = "class:^hw-c$" })' >/dev/null
+lua 'return hl.plugin.hyprweave.create({ direction = "column", children = { { window = "class:^hw-a$", size = 75 }, { window = "class:^hw-b$", size = 25 } } })' >/dev/null
+sleep 1
+check "the group gets a tile" test "$(field hw-a '.size[0]')" -gt 100
+check "the group and the other window share the screen" test "$(($(field hw-a '.size[0]') + $(field hw-c '.size[0]')))" -gt "$((${MON%,*} - 100))"
+check "focus stays on the other window" test "$(ctl activewindow -j | jq -r .class)" = hw-c
+
+echo "== other windows can not be moved into a group"
+for d in l r u d; do
+    ctl dispatch "hl.dsp.window.move({ into_group = \"$d\" })" >/dev/null
+    ctl dispatch "hl.dsp.window.move({ direction = \"$d\" })" >/dev/null
+done
+sleep 1
+check "into_group and moves leave the window out" test "$(field hw-c '.grouped | length')" -eq 0
+check "the group keeps its two members" test "$(field hw-a '.grouped | length')" -eq 2
+ctl dispatch 'hl.dsp.focus({ window = "class:^hw-a$" })' >/dev/null
+ctl dispatch 'hl.dsp.window.move({ direction = "r" })' >/dev/null
+ctl dispatch 'hl.dsp.window.move({ direction = "l" })' >/dev/null
+sleep 1
+check "moving a member moves the whole group" test "$(field hw-a '.grouped | length')" -eq 2
+
+echo "== Hyprland's group toggle dissolves a group cleanly"
+ctl dispatch 'hl.dsp.group.toggle()' >/dev/null
+check "members are ungrouped" wait_for 3 ungrouped hw-b
+check "no hyprweave groups left" test "$(groups)" -eq 0
+sleep 1
+check "the three windows fill the screen again" test "$(ctl clients -j | jq '[.[] | select(.class | startswith("hw-")) | .size[0] * .size[1]] | add')" -gt "$((${MON%,*} * ${MON#*,} * 9 / 10))"
 
 echo
 if ((FAILURES > 0)); then

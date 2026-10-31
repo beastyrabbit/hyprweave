@@ -268,14 +268,25 @@ static void hkUpdatePos(Layout::CWindowGroupTarget* thisptr, uint8_t flags) {
 
 // Wraps CWindowGroupMembership::canBeGroupedInto. Hyprland adds a newly mapped window to the
 // focused group; for hyprweave groups that only happens with plugin:hyprweave:auto_join.
+// hyprweave groups take windows only through the API, and with auto_join a newly opened window
+// when the group's lock lets members in. Every hyprweave group carries Hyprland's own group lock
+// (see applyLock), which already keeps out moves and drags; here it is lifted for auto_join only.
 static bool hkCanBeGroupedInto(const Desktop::View::CWindowGroupMembership* thisptr, const SP<CGroup>& group) {
-    if (!(*(origCanGroup)g_canGroupHook->m_original)(thisptr, group))
+    const auto ORIGINAL = [&] { return (*(origCanGroup)g_canGroupHook->m_original)(thisptr, group); };
+
+    auto* const STATE = group ? find(group.get()) : nullptr;
+    if (!STATE)
+        return ORIGINAL();
+
+    const bool NEW_WINDOW = !!(thisptr->m_window.m_state & Desktop::View::WINDOW_STATE_FIRST_MAP);
+    if (!g_autoJoin->value() || !NEW_WINDOW || STATE->lock == eLock::MEMBERS || STATE->lock == eLock::FULL)
         return false;
 
-    if (!group || !find(group.get()) || g_autoJoin->value())
-        return true;
-
-    return !(thisptr->m_window.m_state & Desktop::View::WINDOW_STATE_FIRST_MAP);
+    // the core's remaining checks (global lock, window rules) still apply
+    group->setLocked(false);
+    const bool ALLOWED = ORIGINAL();
+    group->setLocked(true);
+    return ALLOWED;
 }
 
 static CFunctionHook* hookByName(const char* name, const char* signature, void* destination) {
@@ -319,9 +330,11 @@ std::expected<void, std::string> Weave::initHooks() {
 // ---------------------------------------------------------------------------------------------
 // Operations
 
+// The core lock is always on, whatever the level: it keeps Hyprland's moves, drags and
+// `into_group` from adding windows, and it makes moving a member move the whole group.
 static void applyLock(SGroup& state, eLock lock) {
     state.lock = lock;
-    state.group->setLocked(lock == eLock::MEMBERS || lock == eLock::FULL);
+    state.group->setLocked(true);
 }
 
 std::expected<SP<CGroup>, std::string> Weave::create(std::unique_ptr<SNode> root, eLock lock, SStyle style) {
@@ -347,6 +360,13 @@ std::expected<SP<CGroup>, std::string> Weave::create(std::unique_ptr<SNode> root
             OLD->remove(w);
     }
 
+    // Hyprland's own group actions always run with the window being grouped focused. With focus on
+    // another window of the workspace, dwindle loses track of the group's tile while it forms
+    // (the group ends up with an empty box). So form it the core's way and give focus back after.
+    const auto FOCUSED = Desktop::focusState()->window();
+    if (FOCUSED != windows.front())
+        Desktop::focusState()->fullWindowFocus(windows.front(), Desktop::FOCUS_REASON_DESKTOP_STATE_CHANGE);
+
     const auto GROUP = CGroup::create({PHLWINDOWREF{windows.front()}});
     for (size_t i = 1; i < windows.size(); ++i)
         GROUP->add(windows[i]);
@@ -360,9 +380,11 @@ std::expected<SP<CGroup>, std::string> Weave::create(std::unique_ptr<SNode> root
     g_groups.push_back(std::move(state));
 
     // the focused member is current (it owns fullscreen; see onWindowFocus), else the first one
-    const auto FOCUSED = Desktop::focusState()->window();
     GROUP->setCurrent(std::ranges::contains(windows, FOCUSED) ? FOCUSED : windows.front());
     GROUP->updateWindowVisibility();
+
+    if (FOCUSED && FOCUSED->mapped() && Desktop::focusState()->window() != FOCUSED)
+        Desktop::focusState()->fullWindowFocus(FOCUSED, Desktop::FOCUS_REASON_DESKTOP_STATE_CHANGE);
 
     return GROUP;
 }

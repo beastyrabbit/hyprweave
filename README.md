@@ -57,7 +57,8 @@ hl.plugin.hyprweave.create({
 ## What a group does
 
 - **Fullscreen**: fullscreening a member shows it alone; `hl.plugin.hyprweave.fullscreen()` fullscreens the whole group with its split.
-- **Locks**: `lock = "full"` keeps other windows out and closes the whole group when one member closes. Good for windows that belong together, like a stream and its chat.
+- **Closed to outsiders**: windows join only through `create`. Moving or dragging another window onto a group never adds it, and moving a member moves the group.
+- **Locks**: `lock = "full"` also closes the whole group when one member closes. Good for windows that belong together, like a stream and its chat.
 - **Frame**: one border goes around the whole group, in its own colours, where a single window's border would be.
 - **Unload-safe**: unloading the plugin turns every group back into a normal tab group. No window is closed.
 

@@ -25,7 +25,7 @@ All three are matched on their full demangled signature; if any is missing the p
 | --- | --- | --- |
 | `CGroup::updateWindowVisibility()` | Syncs the tree with the members (`prune`, then `append` for new members), keeps every member visible and accepting input, removes the tab bar decoration, recalculates the group target. Dissolves the group (deferred) when one member is left. | Original. |
 | `CWindowGroupTarget::updatePos(unsigned char)` | Splits the group target's `m_box` (inside the frame, see below) along the tree and calls `setPositionGlobal` on each member's window target. Also sets member visibility (alpha and input block). When the current member is fullscreen on its own, it gets the whole box and the others are hidden like inactive tabs. | Original (every member gets the whole box). |
-| `CWindowGroupMembership::canBeGroupedInto(...)` | Returns false for a window that is mapping for the first time, unless `auto_join` is on. That stops Hyprland's auto-group on open. Drags and explicit moves are unaffected. | Original. |
+| `CWindowGroupMembership::canBeGroupedInto(...)` | Returns false, except for a window mapping for the first time while `auto_join` is on and the lock is `none` or `layout`; then it lifts the group's core lock and asks the original, so global locks and window rules still apply. This covers auto-group on open and dragging. | Original. |
 
 `updateWindowVisibility` runs after every membership or current-member change (`init`, `add`, `remove`, `replaceMember`, `setCurrent`, `swapWith*`), so it is the one place where the tree catches up with changes made by the core.
 
@@ -48,7 +48,11 @@ Corner radii use Hyprland's border rule: a curve `d` pixels further out has radi
 
 ## Locks and closing
 
-`members` and `full` set the native group lock (`CGroup::setLocked`), which blocks every way into the group. `layout` is hyprweave state only; nothing changes sizes yet besides `create`. On `Event::bus()` `window.close` (emitted at the start of unmap, while the window is still a member), a locked group sends `sendClose()` to the other members on the next loop iteration. `SGroup::closing` stops the cascade from repeating.
+Every hyprweave group has the native group lock (`CGroup::setLocked`), whatever its level. The core checks it in every move into a group (`into_group`, directional moves, `moveintoorcreategroup`), so windows only join through `create` and `auto_join`, and a directional move of a member moves the whole group. The hyprweave level decides the rest: `members` and `full` also keep `auto_join` out, and `layout` is hyprweave state only; nothing changes sizes yet besides `create`. On `Event::bus()` `window.close` (emitted at the start of unmap, while the window is still a member), a locked group sends `sendClose()` to the other members on the next loop iteration. `SGroup::closing` stops the cascade from repeating.
+
+## Creating a group
+
+`create` forms the group the way the core's own group actions do: with the first window focused. Every core caller has the window being grouped focused, and with focus on another window of the workspace dwindle loses the group's tile while it forms (the group gets an empty box until the next full relayout). So `create` focuses the first window, forms the group, and gives focus back.
 
 ## Focus and fullscreen
 
