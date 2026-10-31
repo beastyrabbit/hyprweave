@@ -3,6 +3,7 @@ name = "hyprweave"
 authors = ["beastyrabbit"]
 commit_pins = [
     # [Hyprland commit, hyprweave commit]: the hyprweave commit hyprpm builds for that Hyprland
+    ["0aa6745f705f2c4b0a5004eb019ef76e5bbdb426", "2fad40874606ca1789a1a2504a0770a6d5ca2379"], # 0.57.0
 ]
 
 [hyprweave]
