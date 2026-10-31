@@ -1,6 +1,6 @@
 # hyprweave
 
-A C++ Hyprland plugin that turns native groups into flex-style containers: rows and columns with percentage sizes, nested, all members visible, the group still one unit in every layout. Project purpose, status and design decisions live in memex (project `hyprweave`); search it before starting work.
+A C++ Hyprland plugin that turns native groups into flex-style containers: rows and columns with percentage sizes, nested, all members visible, the group still one unit in every layout. Project purpose, status and design decisions live in memex (project `hyprweave`, page `pages/projects/hyprweave.md`); search it before starting work.
 
 ## Read first
 
