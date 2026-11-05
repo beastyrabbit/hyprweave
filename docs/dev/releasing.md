@@ -13,7 +13,7 @@ hyprweave uses semantic versions. The version lives in `HYPRWEAVE_VERSION` (`src
 
 ## After a Hyprland release
 
-The daily CI run builds against the newest Hyprland in Arch Linux. When it passes on a Hyprland release that `hyprpm.toml` does not pin yet, it opens a pull request that adds the pin. The pin names the newest release's commit if `src/` and the `Makefile` are unchanged since then, otherwise the commit the run tested; in that case, release first and point the pin at the release. Merge it to support the new Hyprland.
+The daily CI run builds against the newest Hyprland in Arch Linux. When it passes on a Hyprland release that `hyprpm.toml` does not pin yet, it commits the pin to `main` itself ([`tests/ci/add-pin.sh`](../../tests/ci/add-pin.sh)); nobody has to merge anything. The pin names the newest release's commit if `src/` and the `Makefile` are unchanged since then, otherwise the commit the run tested.
 
 When the daily run fails after a Hyprland update:
 
