@@ -20,7 +20,7 @@ It covers:
 | Frame and background pixels | frame colour while focused and unfocused, background in the gap and the padding, `frame_size = 0` |
 | Joining | new windows stay out with `auto_join = false`; with `auto_join = true` a `members` lock keeps them out and `none` lets them in |
 | Moving and floating | the group changes workspace as one; floating one member floats the group with its split |
-| Fullscreen | a member alone, the whole group with `fullscreen()`, and the split coming back |
+| Fullscreen | a member alone; whole-group fullscreen keeps its split, monitor coverage and focus through next/previous; both fullscreen toggles exit it; later solo fullscreen still shows one member |
 | Closing | a locked group closes with its member; an unlocked one dissolves when one window is left |
 | Nesting | a row with a column inside it |
 | API errors | each bad input returns `nil, message` and creates nothing; `dissolve()` |

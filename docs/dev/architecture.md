@@ -58,7 +58,7 @@ Every hyprweave group has the native group lock (`CGroup::setLocked`), whatever 
 
 Hyprland stores a group's fullscreen state on its current member (`IFullscreenHandler` resolves a group target to `current()`). So the focused member must be current: on `window.active`, a member that is not current becomes current (deferred with `doLater`, skipped while the group is fullscreen). `create` makes the focused member current too.
 
-A normal fullscreen therefore marks the focused member, and `hkUpdatePos` shows it alone. `fullscreen()` sets `SGroup::fullscreenGroup` and then fullscreens the current member; with the flag set, `hkUpdatePos` keeps the split. The `window.fullscreen` listener clears the flag once the current member leaves fullscreen.
+A normal fullscreen therefore marks the focused member, and `hkUpdatePos` shows it alone. `fullscreen()` sets `SGroup::fullscreenGroup` and then fullscreens the current member; with the flag set, `hkUpdatePos` keeps the split. When cycling members, `CGroup::setCurrent` leaves fullscreen on the old member before restoring it on the new one. The `window.fullscreen` listener defers its check until that transfer has finished. If the current member is still fullscreen, the flag stays set. Otherwise it clears the flag and recalculates the group target to restore the frame and padding. The deferred callback holds a weak group reference and is cancelled on unload with the other queued work.
 
 ## Unload
 

@@ -8,7 +8,7 @@
 
 inline HANDLE PHANDLE = nullptr;
 
-#define HYPRWEAVE_VERSION "0.1.0"
+#define HYPRWEAVE_VERSION "0.1.1"
 
 // plugin:hyprweave:auto_join: newly opened windows may join a focused, unlocked hyprweave group
 inline SP<Config::Values::CBoolValue> g_autoJoin;

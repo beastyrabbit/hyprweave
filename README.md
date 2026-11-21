@@ -4,7 +4,7 @@ A Hyprland plugin that turns groups into flex-style containers. Instead of tabs,
 
 ![Three windows; two become a 75/25 group that keeps its split in the master, scrolling and dwindle layouts](docs/media/create.gif)
 
-> **Alpha.** hyprweave 0.1.0 is the first release. It works with Hyprland 0.57.0 and the Lua config, on x86_64. The API may still change.
+> **Alpha.** hyprweave 0.1.1 targets Hyprland 0.57.2 and the Lua config, on x86_64. The API may still change.
 
 ## Install
 
@@ -56,7 +56,7 @@ hl.plugin.hyprweave.create({
 
 ## What a group does
 
-- **Fullscreen**: fullscreening a member shows it alone; `hl.plugin.hyprweave.fullscreen()` fullscreens the whole group with its split.
+- **Fullscreen**: fullscreening a member shows it alone; `hl.plugin.hyprweave.fullscreen()` fullscreens the whole group with its split, which stays intact when cycling members with group next/previous.
 - **Closed to outsiders**: windows join only through `create`. Moving or dragging another window onto a group never adds it, and moving a member moves the group.
 - **Locks**: `lock = "full"` also closes the whole group when one member closes. Good for windows that belong together, like a stream and its chat.
 - **Frame**: one border goes around the whole group, in its own colours, where a single window's border would be.
