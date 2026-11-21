@@ -71,7 +71,7 @@ Turns the group back into separate windows.
 
 ### `fullscreen({ window? })`
 
-Toggles fullscreen for the whole group, keeping the split across the monitor. A normal fullscreen (`hl.dsp.window.fullscreen()`, or the app's own fullscreen) covers the monitor with that member alone and hides the others until it leaves fullscreen. To bind group fullscreen:
+Toggles fullscreen for the whole group, keeping the split across the monitor. `hl.dsp.group.next()` and `hl.dsp.group.prev()` move focus between members while keeping whole-group fullscreen and its split. A normal fullscreen (`hl.dsp.window.fullscreen()`, or the app's own fullscreen) covers the monitor with that member alone and hides the others until it leaves fullscreen. To bind group fullscreen:
 
 ```lua
 hl.bind("SUPER + SHIFT + F", function() hl.plugin.hyprweave.fullscreen() end)

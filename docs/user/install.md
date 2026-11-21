@@ -2,11 +2,11 @@
 
 ## Requirements
 
-- Hyprland 0.57.0 with the Lua config (`hyprland.lua`). The API is Lua only.
+- Hyprland 0.57.2 with the Lua config (`hyprland.lua`). The API is Lua only.
 - x86_64. Function hooks do not work on other architectures.
 - For hyprpm: `cpio`, `cmake`, `git`, `meson` and `gcc` (hyprpm builds Hyprland's headers with them).
 
-hyprweave is alpha software. It has been tested on Arch Linux with Hyprland 0.57.0.
+hyprweave 0.1.1 is alpha software, tested on Arch Linux with Hyprland 0.57.2. The hyprpm pins for Hyprland 0.57.0 and 0.57.1 retain the earlier plugin build.
 
 ## With hyprpm
 

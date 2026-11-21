@@ -179,11 +179,30 @@ sleep 0.5
 check "group fullscreen keeps the split" near "$(ratio hw-stream hw-chat h)" 75
 check "group fullscreen covers the monitor height" test "$(($(field hw-stream '.size[1]') + $(field hw-chat '.size[1]')))" -ge "$((${MON#*,} - 20))"
 check "group fullscreen starts at the monitor top" test "$(field hw-stream '.at[1]')" -eq 0
+for direction in next next prev prev; do
+    BEFORE=$(ctl activewindow -j | jq -r .class)
+    if [[ $BEFORE == hw-chat ]]; then AFTER=hw-stream; else AFTER=hw-chat; fi
+    ctl dispatch "hl.dsp.group.$direction()" >/dev/null
+    check "$direction transfers fullscreen to $AFTER" wait_for 3 fullscreen "$AFTER"
+    check "$direction moves focus to $AFTER" test "$(ctl activewindow -j | jq -r .class)" = "$AFTER"
+    check "$direction keeps the group split" wait_for 3 ratio_near hw-stream hw-chat h 75
+    check "$direction keeps the group at the monitor top" test "$(field hw-stream '.at[1]')" -eq 0
+    check "$direction keeps the monitor covered" test "$(($(field hw-stream '.size[1]') + $(field hw-chat '.size[1]')))" -ge "$((${MON#*,} - 20))"
+done
 lua 'return hl.plugin.hyprweave.fullscreen({ window = "class:^hw-stream$" })' >/dev/null
 check "group leaves fullscreen" wait_for 3 windowed hw-chat
 sleep 0.5
 check "split is back after group fullscreen" near "$(ratio hw-stream hw-chat h)" 75
 check "group no longer starts at the monitor top" test "$(field hw-stream '.at[1]')" -gt 0
+
+lua 'return hl.plugin.hyprweave.fullscreen({ window = "class:^hw-stream$" })' >/dev/null
+ctl dispatch 'hl.dsp.window.fullscreen()' >/dev/null
+check "normal fullscreen toggle also exits group fullscreen" wait_for 3 windowed hw-chat
+ctl dispatch 'hl.dsp.window.fullscreen()' >/dev/null
+check "normal fullscreen after group exit shows a member alone" wait_for 3 fullscreen hw-chat
+check "solo fullscreen after group exit covers the monitor" test "$(size hw-chat)" = "$MON"
+ctl dispatch 'hl.dsp.window.fullscreen()' >/dev/null
+check "solo fullscreen after group exit can be left" wait_for 3 windowed hw-chat
 
 echo "== closing a member of a locked group closes the group"
 ctl dispatch 'hl.dsp.window.close({ window = "class:^hw-stream$" })' >/dev/null

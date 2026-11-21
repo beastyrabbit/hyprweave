@@ -480,11 +480,20 @@ void Weave::onWindowFocus(PHLWINDOW w) {
 
 void Weave::onWindowFullscreen(PHLWINDOW w) {
     auto* const STATE = findForWindow(w);
-    if (!STATE)
+    if (!STATE || !STATE->fullscreenGroup)
         return;
 
-    if (STATE->fullscreenGroup && !Fullscreen::controller()->isFullscreen(STATE->group->current()))
-        STATE->fullscreenGroup = false;
+    // setCurrent temporarily leaves fullscreen before transferring it to the new member.
+    // Check after that transfer, and retain only a weak group reference until then.
+    later([ref = STATE->group] {
+        const auto GROUP = ref.lock();
+        auto* const S = find(GROUP.get());
+        if (!S || !S->fullscreenGroup || Fullscreen::controller()->isFullscreen(GROUP->current()))
+            return;
+
+        S->fullscreenGroup = false;
+        GROUP->target()->recalc();
+    });
 }
 
 void Weave::onWindowClose(PHLWINDOW w) {
